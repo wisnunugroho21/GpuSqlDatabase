@@ -1,0 +1,12 @@
+# ignore thumbnails created by Windows
+Thumbs.db
+
+# build folder
+build/
+
+# vscode related files
+.vscode/
+*.code-workspace
+
+# UI window placements
+**/imgui.ini*

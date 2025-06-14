@@ -1,0 +1,3 @@
+[submodule "imported/D3D12MemoryAllocator"]
+	path = imported/D3D12MemoryAllocator
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator.git
