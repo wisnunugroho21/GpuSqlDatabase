@@ -1,3 +1,6 @@
 [submodule "imported/D3D12MemoryAllocator"]
 	path = imported/D3D12MemoryAllocator
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator.git
+[submodule "imported/rapidcsv"]
+	path = imported/rapidcsv
+	url = https://github.com/d99kris/rapidcsv.git
