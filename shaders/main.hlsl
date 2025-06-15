@@ -1,8 +1,8 @@
-RWBuffer<int> InputABuffer : register(u0);
+RWStructuredBuffer<int> InputABuffer : register(u0);
 
-RWBuffer<int> InputBBuffer : register(u1);
+RWStructuredBuffer<int> InputBBuffer : register(u1);
 
-RWBuffer<int> OutputBuffer : register(u2);
+RWStructuredBuffer<int> OutputBuffer : register(u2);
 
 [Shader("node")]
 [NodeIsProgramEntry]

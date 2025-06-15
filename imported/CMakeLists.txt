@@ -39,3 +39,4 @@ fetch_nuget_package(
 )
 
 add_subdirectory(D3D12MemoryAllocator)
+add_subdirectory(rapidcsv)

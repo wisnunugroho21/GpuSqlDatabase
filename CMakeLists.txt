@@ -59,7 +59,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     dxcompiler
     dxgi
     dxguid
-    D3D12MemoryAllocator)
+    D3D12MemoryAllocator
+    rapidcsv)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES 
     VS_DPI_AWARE "PerMonitor"

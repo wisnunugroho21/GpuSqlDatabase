@@ -25,6 +25,9 @@
 
 #include <iostream>
 #include <sstream>
+#include <rapidcsv.h>
+
+#define NUM_COUNT 1000
 
 Application::Application(const Options& options)
 {
@@ -96,7 +99,7 @@ void Application::OnExecute(ID3D12GraphicsCommandList10* commandList)
 
         commandList->ResourceBarrier(preBarriers.size(), preBarriers.data());
 
-        commandList->CopyBufferRegion(dataBuffer_.Get(), 0, uploadBuffer_.Get(), 0, 20 * sizeof(int));        
+        commandList->CopyBufferRegion(dataBuffer_.Get(), 0, uploadBuffer_.Get(), 0, 2 * NUM_COUNT * sizeof(int));        
 
         commandList->ResourceBarrier(postBarriers.size(), postBarriers.data());
     }
@@ -124,7 +127,7 @@ void Application::OnExecute(ID3D12GraphicsCommandList10* commandList)
 
         commandList->ResourceBarrier(preBarriers.size(), preBarriers.data());
 
-        commandList->CopyBufferRegion(readbackBuffer_.Get(), 0, dataBuffer_.Get(), 20 * sizeof(int), 10 * sizeof(int));         
+        commandList->CopyBufferRegion(readbackBuffer_.Get(), 0, dataBuffer_.Get(), 2 * NUM_COUNT * sizeof(int), 1 * NUM_COUNT * sizeof(int));         
 
         commandList->ResourceBarrier(postBarriers.size(), postBarriers.data());
     }
@@ -202,7 +205,7 @@ void Application::CreateDataBuffer()
 {
     dataBuffer_.Reset();
 
-    const auto elementCount = 100;
+    const auto elementCount = 3 * NUM_COUNT;
     const auto elementSize  = sizeof(int);
 
     CD3DX12_HEAP_PROPERTIES heapProperties(D3D12_HEAP_TYPE_DEFAULT);
@@ -217,11 +220,11 @@ void Application::CreateDataBuffer()
 
     D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
     uavDesc.ViewDimension                    = D3D12_UAV_DIMENSION_BUFFER;
-    uavDesc.Format                           = DXGI_FORMAT_R32_SINT;
+    uavDesc.Format                           = DXGI_FORMAT_UNKNOWN;
     uavDesc.Buffer.CounterOffsetInBytes      = 0;
     uavDesc.Buffer.FirstElement              = 0;
-    uavDesc.Buffer.NumElements               = 10;
-    uavDesc.Buffer.StructureByteStride       = 0;
+    uavDesc.Buffer.NumElements               = NUM_COUNT;
+    uavDesc.Buffer.StructureByteStride       = sizeof(int);
     uavDesc.Buffer.Flags                     = D3D12_BUFFER_UAV_FLAG_NONE;
 
     const auto descriptorSize =
@@ -243,7 +246,7 @@ void Application::CreateDataBuffer()
         CD3DX12_CPU_DESCRIPTOR_HANDLE(
             resourceDescriptorHeap_->GetCPUDescriptorHandleForHeapStart(), descriptorIndex, descriptorSize));
 
-    uavDesc.Buffer.FirstElement = 10;
+    uavDesc.Buffer.FirstElement = 1 * NUM_COUNT;
     descriptorIndex = 1;
 
     device_->GetDevice()->CreateUnorderedAccessView(
@@ -260,7 +263,7 @@ void Application::CreateDataBuffer()
         CD3DX12_CPU_DESCRIPTOR_HANDLE(
             resourceDescriptorHeap_->GetCPUDescriptorHandleForHeapStart(), descriptorIndex, descriptorSize));
 
-    uavDesc.Buffer.FirstElement = 20;
+    uavDesc.Buffer.FirstElement = 2 * NUM_COUNT;
     descriptorIndex = 2;
 
     device_->GetDevice()->CreateUnorderedAccessView(
@@ -282,7 +285,7 @@ void Application::CreateUploadBuffer()
 {
     uploadBuffer_.Reset();
 
-    const auto elementCount = 100;
+    const auto elementCount = 2 * NUM_COUNT;
     const auto elementSize  = sizeof(int);
 
     CD3DX12_HEAP_PROPERTIES heapProperties(D3D12_HEAP_TYPE_UPLOAD);
@@ -300,7 +303,7 @@ void Application::CreateReadbackBuffer()
 {
     readbackBuffer_.Reset();
 
-    const auto elementCount = 100;
+    const auto elementCount = NUM_COUNT;
     const auto elementSize  = sizeof(int);
 
     CD3DX12_HEAP_PROPERTIES heapProperties(D3D12_HEAP_TYPE_READBACK);
@@ -315,8 +318,13 @@ void Application::CreateReadbackBuffer()
 }
 
 void Application::UploadBuffer() {
-    std::array<int, 10> datas1 = { 19, 1, 2, 3, 4, 5, 6, 7, 8, 77 };
-
+    rapidcsv::Document doc("../../../data/random_integer.csv", rapidcsv::LabelParams(-1, -1));
+    
+    std::array<int, 10> datas1;
+    for(size_t i = 0; i < 10; i++) {
+        datas1[i] = doc.GetCell<int>(0, i);
+    }
+   
     void* mappedData;
     ThrowIfFailed(uploadBuffer_->Map(0, nullptr, &mappedData));
     
@@ -324,7 +332,7 @@ void Application::UploadBuffer() {
 
     std::array<int, 10> datas2 = { 20, 3, 2, 3, 5, 4, 6, 7, 8, 77 };
 
-    memcpy((int*) mappedData + 10, datas2.data(), datas2.size() * sizeof(int));
+    memcpy((int*) mappedData + NUM_COUNT, datas2.data(), datas2.size() * sizeof(int));
 
     uploadBuffer_->Unmap(0, nullptr);
 }
