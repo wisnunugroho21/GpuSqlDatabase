@@ -28,7 +28,7 @@ RWStructuredBuffer<int> atomicCounter : register(u2);
 [NodeMaxDispatchGrid(512, 512, 1)]
 [NodeId("Entry")]
 void FromNode(
-    uint3 dispatchThreadId: SV_DispatchThreadID,
+    uint dispatchThreadId: SV_DispatchThreadID,
 
     DispatchNodeInputRecord<EntryRecord> inputRecord,
 
@@ -40,7 +40,7 @@ void FromNode(
         nodeOutput.GetThreadNodeOutputRecords(1);
 
     outputRecord.Get().index          = dispatchThreadId.x;
-    outputRecord.Get().serangan_rudal = SeranganRudalBuffer[dispatchThreadId.x];
+    outputRecord.Get().serangan_rudal = SeranganRudalBuffer[dispatchThreadId];
 
     outputRecord.OutputComplete();
 }
