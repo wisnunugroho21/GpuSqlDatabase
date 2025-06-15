@@ -116,17 +116,20 @@ WorkGraph::WorkGraph(const Device*        device,
     }
 }
 
-void WorkGraph::Dispatch(ID3D12GraphicsCommandList10* commandList)
+void WorkGraph::Dispatch(ID3D12GraphicsCommandList10* commandList, void* entryData, UINT64 entrySize)
 {
-    D3D12_DISPATCH_GRAPH_DESC dispatchDesc        = {};
-    dispatchDesc.Mode                             = D3D12_DISPATCH_MODE_NODE_CPU_INPUT;
-    dispatchDesc.NodeCPUInput                     = {};
-    dispatchDesc.NodeCPUInput.EntrypointIndex     = entryPointIndex_;
-    // Launch graph with one record
-    dispatchDesc.NodeCPUInput.NumRecords          = 1;
-    // Record does not contain any data
-    dispatchDesc.NodeCPUInput.RecordStrideInBytes = 0;
-    dispatchDesc.NodeCPUInput.pRecords            = nullptr;
+    D3D12_DISPATCH_GRAPH_DESC dispatchDesc        = {
+        .Mode = D3D12_DISPATCH_MODE_NODE_CPU_INPUT
+    };
+
+    dispatchDesc.NodeCPUInput                     = {
+        .EntrypointIndex     = entryPointIndex_,
+        
+        // Launch graph with one record
+        .NumRecords          = 1,        
+        .pRecords            = entryData,
+        .RecordStrideInBytes = entrySize
+    };    
 
     // Set program and dispatch the work graphs.
     // See

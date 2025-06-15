@@ -25,10 +25,11 @@
 
 #include <iostream>
 #include <sstream>
+#include <cmath>
 #include <rapidcsv.h>
 
 #define ROW_COUNT 1000
-#define COL_COUNT 2
+#define COL_COUNT 1
 
 Application::Application(const Options& options)
 {
@@ -103,26 +104,30 @@ void Application::OnExecute(ID3D12GraphicsCommandList10* commandList)
         commandList->CopyBufferRegion(dataBuffer_.Get(), 0, uploadBuffer_.Get(), 0, COL_COUNT * ROW_COUNT * sizeof(int));        
 
         commandList->ResourceBarrier(postBarriers.size(), postBarriers.data());
-    }
-
-    struct RootConstants {
-        uint32_t rowCount;
-    };
-
-    RootConstants constant {
-        .rowCount = ROW_COUNT
-    };
+    }    
 
     // Set root signature for parameters
     commandList->SetComputeRootSignature(workGraphRootSignature_.Get());
     
-    commandList->SetComputeRoot32BitConstants(0, 1, &constant, 0);
-
     // Set descriptor heap & table
     commandList->SetDescriptorHeaps(1, resourceDescriptorHeap_.GetAddressOf());
-    commandList->SetComputeRootDescriptorTable(1, resourceDescriptorHeap_->GetGPUDescriptorHandleForHeapStart());
+    commandList->SetComputeRootDescriptorTable(0, resourceDescriptorHeap_->GetGPUDescriptorHandleForHeapStart());
 
-    workGraph_->Dispatch(commandList);
+    struct EntryRecord {
+        uint32_t xDispatchSize;
+        uint32_t yDispatchSize;
+        uint32_t zDispatchSize;
+        uint32_t rowCount;
+    };
+
+    EntryRecord entryRecord {
+        .xDispatchSize = 1, // std::ceil(ROW_COUNT / 64),
+        .yDispatchSize = 1,
+        .zDispatchSize = 1,
+        .rowCount      = ROW_COUNT
+    };
+
+    workGraph_->Dispatch(commandList, &entryRecord, sizeof(entryRecord));
 
     // Copy default buffer to readback buffer
     {
@@ -171,9 +176,8 @@ void Application::CreateWorkGraphRootSignature()
 {
     const auto descriptorRange = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, COL_COUNT + 1, 0);
 
-    std::array<CD3DX12_ROOT_PARAMETER, 2> rootParameters;
-    rootParameters[0].InitAsConstants(1, 0);
-    rootParameters[1].InitAsDescriptorTable(1, &descriptorRange);
+    std::array<CD3DX12_ROOT_PARAMETER, 1> rootParameters;
+    rootParameters[0].InitAsDescriptorTable(1, &descriptorRange);
 
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
     rootSignatureDesc.Init(rootParameters.size(), rootParameters.data(), 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_NONE);
@@ -293,7 +297,7 @@ void Application::UploadBuffer() {
     ThrowIfFailed(uploadBuffer_->Map(0, nullptr, &mappedData));
 
     {
-        rapidcsv::Document doc("../../../data/random_integer.csv", rapidcsv::LabelParams(-1, -1));
+        rapidcsv::Document doc("../../../data/serangan_rudal.csv", rapidcsv::LabelParams(-1, -1));
     
         std::vector<int> datas;
         datas.reserve(ROW_COUNT);
@@ -305,7 +309,7 @@ void Application::UploadBuffer() {
         memcpy(mappedData, datas.data(), datas.size() * sizeof(int));
     }
 
-    {
+    /* {
         rapidcsv::Document doc("../../../data/random_integer1.csv", rapidcsv::LabelParams(-1, -1));
     
         std::vector<int> datas;
@@ -316,7 +320,7 @@ void Application::UploadBuffer() {
         }
 
         memcpy((int*) mappedData + ROW_COUNT, datas.data(), datas.size() * sizeof(int));
-    }
+    } */
 
     uploadBuffer_->Unmap(0, nullptr);
 }

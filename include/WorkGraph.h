@@ -34,7 +34,7 @@ public:
               ShaderCompiler&      shaderCompiler,
               ID3D12RootSignature* rootSignature);
 
-    void Dispatch(ID3D12GraphicsCommandList10* commandList);
+    void Dispatch(ID3D12GraphicsCommandList10* commandList, void* entryRecord = nullptr, UINT64 entrySize = 0);
 
 private:
     ComPtr<ID3D12StateObject> stateObject_;
