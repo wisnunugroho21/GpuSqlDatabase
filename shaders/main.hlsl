@@ -3,45 +3,89 @@ struct EntryRecord {
     uint  rowCount;
 };
 
-/* struct WhereRecord {
+struct WhereRecord {
     uint index;
     uint serangan_rudal;
-}; */
+};
 
-RWStructuredBuffer<int> InputABuffer : register(u0);
+struct SelectRecord {
+    uint index;
+    uint serangan_rudal;
+};
+
+RWStructuredBuffer<int> SeranganRudalBuffer : register(u0);
 
 // RWStructuredBuffer<int> InputBBuffer : register(u1);
 
 RWStructuredBuffer<int> OutputBuffer : register(u1);
 
+RWStructuredBuffer<int> atomicCounter : register(u2);
+
 [Shader("node")]
 [NodeIsProgramEntry]
 [NodeLaunch("broadcasting")]
-[NumThreads(1, 1, 1)]
-[NodeMaxDispatchGrid(10, 10, 10)]
+[NumThreads(64, 1, 1)]
+[NodeMaxDispatchGrid(512, 512, 1)]
 [NodeId("Entry")]
 void FromNode(
-    DispatchNodeInputRecord<EntryRecord> inputRecord
+    uint3 dispatchThreadId: SV_DispatchThreadID,
+
+    DispatchNodeInputRecord<EntryRecord> inputRecord,
+
+    [MaxRecords(64)]
+    [NodeId("Where")]
+    NodeOutput<WhereRecord> nodeOutput
 ) {
-    OutputBuffer[0] = InputABuffer[0];
-    OutputBuffer[1] = InputABuffer[1];
-    OutputBuffer[2] = InputABuffer[2];
-    OutputBuffer[3] = InputABuffer[3];
-    OutputBuffer[4] = InputABuffer[4];
-    OutputBuffer[5] = InputABuffer[5];
-    OutputBuffer[6] = InputABuffer[6];
-    OutputBuffer[7] = InputABuffer[7];
-    OutputBuffer[8] = InputABuffer[8];
-    OutputBuffer[9] = inputRecord.Get().rowCount;
+    ThreadNodeOutputRecords<WhereRecord> outputRecord = 
+        nodeOutput.GetThreadNodeOutputRecords(1);
+
+    outputRecord.Get().index          = dispatchThreadId.x;
+    outputRecord.Get().serangan_rudal = SeranganRudalBuffer[dispatchThreadId.x];
+
+    outputRecord.OutputComplete();
 }
 
-/* [Shader("node")]
+[Shader("node")]
 [NodeLaunch("coalescing")]
 [NumThreads(64, 1, 1)]
 [NodeId("Where")]
 void WhereNode(
-    [MaxRecords(64)]
-    GroupNodeInputRecords<WhereRecord> inputRecord
-) {
+    uint3 groupThreadId: SV_GroupThreadID,
 
-} */
+    [MaxRecords(64)]
+    GroupNodeInputRecords<WhereRecord> inputRecord,
+
+    [MaxRecords(64)]
+    [NodeId("Select")]
+    NodeOutput<SelectRecord> nodeOutput
+) {
+    const WhereRecord record = inputRecord[groupThreadId.x];
+
+    const bool passFilter = record.serangan_rudal > 500;
+
+    ThreadNodeOutputRecords<SelectRecord> outputRecord = 
+        nodeOutput.GetThreadNodeOutputRecords(passFilter);
+
+    if (passFilter) {
+        outputRecord.Get().index          = record.index;
+        outputRecord.Get().serangan_rudal = record.serangan_rudal;
+    }
+
+    outputRecord.OutputComplete();
+}
+
+[Shader("node")]
+[NodeLaunch("coalescing")]
+[NumThreads(64, 1, 1)]
+[NodeId("Select")]
+void SelectNode(
+    uint3 groupThreadId: SV_GroupThreadID,
+
+    [MaxRecords(64)]
+    GroupNodeInputRecords<SelectRecord> inputRecord
+) {
+    const SelectRecord record  = inputRecord[groupThreadId.x];
+    int                counter = atomicCounter.IncrementCounter();
+
+    OutputBuffer[counter] = record.serangan_rudal;
+}

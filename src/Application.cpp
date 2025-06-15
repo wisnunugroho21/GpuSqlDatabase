@@ -121,7 +121,7 @@ void Application::OnExecute(ID3D12GraphicsCommandList10* commandList)
     };
 
     EntryRecord entryRecord {
-        .xDispatchSize = 1, // std::ceil(ROW_COUNT / 64),
+        .xDispatchSize = static_cast<uint32_t>(std::ceil(ROW_COUNT / 64)),
         .yDispatchSize = 1,
         .zDispatchSize = 1,
         .rowCount      = ROW_COUNT
@@ -174,7 +174,7 @@ bool Application::CreateWorkGraph()
 
 void Application::CreateWorkGraphRootSignature()
 {
-    const auto descriptorRange = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, COL_COUNT + 1, 0);
+    const auto descriptorRange = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, COL_COUNT + 2, 0);
 
     std::array<CD3DX12_ROOT_PARAMETER, 1> rootParameters;
     rootParameters[0].InitAsDescriptorTable(1, &descriptorRange);
@@ -196,7 +196,7 @@ void Application::CreateResourceDescriptorHeaps()
     {
         D3D12_DESCRIPTOR_HEAP_DESC desc {
             .Type                       = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-            .NumDescriptors             = COL_COUNT + 1,
+            .NumDescriptors             = COL_COUNT + 2,
             .Flags                      = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
             .NodeMask                   = 1
         };
@@ -208,7 +208,7 @@ void Application::CreateResourceDescriptorHeaps()
     {
         D3D12_DESCRIPTOR_HEAP_DESC desc {
             .Type                       = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-            .NumDescriptors             = COL_COUNT + 1,
+            .NumDescriptors             = COL_COUNT + 2,
             .Flags                      = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
             .NodeMask                   = 1
         };
@@ -223,7 +223,7 @@ void Application::CreateDataBuffer()
 
     CD3DX12_HEAP_PROPERTIES heapProperties(D3D12_HEAP_TYPE_DEFAULT);
     CD3DX12_RESOURCE_DESC   resourceDescription =
-        CD3DX12_RESOURCE_DESC::Buffer((COL_COUNT + 1) * ROW_COUNT * sizeof(int), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+        CD3DX12_RESOURCE_DESC::Buffer((COL_COUNT + 2) * ROW_COUNT * sizeof(int), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
     ThrowIfFailed(device_->GetDevice()->CreateCommittedResource(&heapProperties,
                                                                 D3D12_HEAP_FLAG_NONE,
                                                                 &resourceDescription,
@@ -260,6 +260,23 @@ void Application::CreateDataBuffer()
             CD3DX12_CPU_DESCRIPTOR_HANDLE(
                 resourceDescriptorHeap_->GetCPUDescriptorHandleForHeapStart(), descriptorIndex, descriptorSize));
     }
+
+    uavDesc.Buffer.FirstElement = (COL_COUNT + 1) * ROW_COUNT;
+    uavDesc.Buffer.NumElements = 1;
+
+    device_->GetDevice()->CreateUnorderedAccessView(
+        dataBuffer_.Get(),
+        nullptr,
+        &uavDesc,
+        CD3DX12_CPU_DESCRIPTOR_HANDLE(
+            clearDescriptorHeap_->GetCPUDescriptorHandleForHeapStart(), (COL_COUNT + 1), descriptorSize));
+            
+    device_->GetDevice()->CreateUnorderedAccessView(
+        dataBuffer_.Get(),
+        nullptr,
+        &uavDesc,
+        CD3DX12_CPU_DESCRIPTOR_HANDLE(
+            resourceDescriptorHeap_->GetCPUDescriptorHandleForHeapStart(), (COL_COUNT + 1), descriptorSize));
 }
 
 void Application::CreateUploadBuffer()
