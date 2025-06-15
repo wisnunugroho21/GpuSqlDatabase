@@ -10,3 +10,5 @@ build/
 
 # UI window placements
 **/imgui.ini*
+
+data/
