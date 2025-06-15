@@ -114,16 +114,12 @@ void Application::OnExecute(ID3D12GraphicsCommandList10* commandList)
     commandList->SetComputeRootDescriptorTable(0, resourceDescriptorHeap_->GetGPUDescriptorHandleForHeapStart());
 
     struct EntryRecord {
-        uint32_t xDispatchSize;
-        uint32_t yDispatchSize;
-        uint32_t zDispatchSize;
+        uint32_t dispatchSize;
         uint32_t rowCount;
     };
 
     EntryRecord entryRecord {
-        .xDispatchSize = static_cast<uint32_t>(std::ceil(ROW_COUNT / 64)),
-        .yDispatchSize = 1,
-        .zDispatchSize = 1,
+        .dispatchSize = static_cast<uint32_t>(std::ceil(ROW_COUNT / 64)),
         .rowCount      = ROW_COUNT
     };
 
@@ -314,7 +310,7 @@ void Application::UploadBuffer() {
     ThrowIfFailed(uploadBuffer_->Map(0, nullptr, &mappedData));
 
     {
-        rapidcsv::Document doc("../../../data/serangan_rudal.csv", rapidcsv::LabelParams(-1, -1));
+        rapidcsv::Document doc("../../../data/serangan_db/serangan_rudal.csv", rapidcsv::LabelParams(-1, -1));
     
         std::vector<int> datas;
         datas.reserve(ROW_COUNT);

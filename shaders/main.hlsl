@@ -1,6 +1,6 @@
 struct EntryRecord {
-    uint3 dispatchSize : SV_DispatchGrid;
-    uint  rowCount;
+    uint dispatchSize : SV_DispatchGrid;
+    uint rowCount;
 };
 
 struct WhereRecord {
