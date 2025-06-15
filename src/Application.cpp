@@ -278,27 +278,41 @@ void Application::CreateReadbackBuffer()
 }
 
 void Application::UploadBuffer() {
-    rapidcsv::Document doc("../../../data/random_integer.csv", rapidcsv::LabelParams(-1, -1));
-    
-    std::array<int, 10> datas1;
-    for(size_t i = 0; i < 10; i++) {
-        datas1[i] = doc.GetCell<int>(0, i);
-    }
-   
     void* mappedData;
     ThrowIfFailed(uploadBuffer_->Map(0, nullptr, &mappedData));
+
+    {
+        rapidcsv::Document doc("../../../data/random_integer.csv", rapidcsv::LabelParams(-1, -1));
     
-    memcpy(mappedData, datas1.data(), datas1.size() * sizeof(int));
+        std::vector<int> datas;
+        datas.reserve(ROW_COUNT);
 
-    std::array<int, 10> datas2 = { 20, 3, 2, 3, 5, 4, 6, 7, 8, 77 };
+        for(size_t i = 0; i < ROW_COUNT; i++) {
+            datas.emplace_back(doc.GetCell<int>(0, i));
+        }
 
-    memcpy((int*) mappedData + ROW_COUNT, datas2.data(), datas2.size() * sizeof(int));
+        memcpy(mappedData, datas.data(), datas.size() * sizeof(int));
+    }
+
+    {
+        rapidcsv::Document doc("../../../data/random_integer1.csv", rapidcsv::LabelParams(-1, -1));
+    
+        std::vector<int> datas;
+        datas.reserve(ROW_COUNT);
+
+        for(size_t i = 0; i < ROW_COUNT; i++) {
+            datas.emplace_back(doc.GetCell<int>(0, i));
+        }
+
+        memcpy((int*) mappedData + ROW_COUNT, datas.data(), datas.size() * sizeof(int));
+    }
 
     uploadBuffer_->Unmap(0, nullptr);
 }
 
 void Application::ReadBackBuffer() {
-    std::array<int, 10> datas = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
+    std::vector<int> datas;
+    datas.resize(ROW_COUNT);
 
     void* mappedData;
     ThrowIfFailed(readbackBuffer_->Map(0, nullptr, &mappedData));
@@ -307,7 +321,7 @@ void Application::ReadBackBuffer() {
 
     readbackBuffer_->Unmap(0, nullptr);
 
-    for (size_t i = 0; i < datas.size(); i++) {
+    for (size_t i = 0; i < 10; i++) {
         std::cout << datas[i] << std::endl;
     }
 }
