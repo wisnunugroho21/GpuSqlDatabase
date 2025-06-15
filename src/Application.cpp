@@ -27,7 +27,8 @@
 #include <sstream>
 #include <rapidcsv.h>
 
-#define NUM_COUNT 1000
+#define ROW_COUNT 1000
+#define COL_COUNT 2
 
 Application::Application(const Options& options)
 {
@@ -99,7 +100,7 @@ void Application::OnExecute(ID3D12GraphicsCommandList10* commandList)
 
         commandList->ResourceBarrier(preBarriers.size(), preBarriers.data());
 
-        commandList->CopyBufferRegion(dataBuffer_.Get(), 0, uploadBuffer_.Get(), 0, 2 * NUM_COUNT * sizeof(int));        
+        commandList->CopyBufferRegion(dataBuffer_.Get(), 0, uploadBuffer_.Get(), 0, COL_COUNT * ROW_COUNT * sizeof(int));        
 
         commandList->ResourceBarrier(postBarriers.size(), postBarriers.data());
     }
@@ -127,7 +128,7 @@ void Application::OnExecute(ID3D12GraphicsCommandList10* commandList)
 
         commandList->ResourceBarrier(preBarriers.size(), preBarriers.data());
 
-        commandList->CopyBufferRegion(readbackBuffer_.Get(), 0, dataBuffer_.Get(), 2 * NUM_COUNT * sizeof(int), 1 * NUM_COUNT * sizeof(int));         
+        commandList->CopyBufferRegion(readbackBuffer_.Get(), 0, dataBuffer_.Get(), COL_COUNT * ROW_COUNT * sizeof(int), ROW_COUNT * sizeof(int));
 
         commandList->ResourceBarrier(postBarriers.size(), postBarriers.data());
     }
@@ -158,7 +159,7 @@ bool Application::CreateWorkGraph()
 
 void Application::CreateWorkGraphRootSignature()
 {
-    const auto descriptorRange = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 3, 0);
+    const auto descriptorRange = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, COL_COUNT + 1, 0);
 
     std::array<CD3DX12_ROOT_PARAMETER, 1> rootParameters;
     rootParameters[0].InitAsDescriptorTable(1, &descriptorRange);
@@ -180,7 +181,7 @@ void Application::CreateResourceDescriptorHeaps()
     {
         D3D12_DESCRIPTOR_HEAP_DESC desc {
             .Type                       = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-            .NumDescriptors             = 3,
+            .NumDescriptors             = COL_COUNT + 1,
             .Flags                      = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
             .NodeMask                   = 1
         };
@@ -192,7 +193,7 @@ void Application::CreateResourceDescriptorHeaps()
     {
         D3D12_DESCRIPTOR_HEAP_DESC desc {
             .Type                       = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-            .NumDescriptors             = 3,
+            .NumDescriptors             = COL_COUNT + 1,
             .Flags                      = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
             .NodeMask                   = 1
         };
@@ -205,12 +206,9 @@ void Application::CreateDataBuffer()
 {
     dataBuffer_.Reset();
 
-    const auto elementCount = 3 * NUM_COUNT;
-    const auto elementSize  = sizeof(int);
-
     CD3DX12_HEAP_PROPERTIES heapProperties(D3D12_HEAP_TYPE_DEFAULT);
     CD3DX12_RESOURCE_DESC   resourceDescription =
-        CD3DX12_RESOURCE_DESC::Buffer(elementCount * elementSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+        CD3DX12_RESOURCE_DESC::Buffer((COL_COUNT + 1) * ROW_COUNT * sizeof(int), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
     ThrowIfFailed(device_->GetDevice()->CreateCommittedResource(&heapProperties,
                                                                 D3D12_HEAP_FLAG_NONE,
                                                                 &resourceDescription,
@@ -222,75 +220,40 @@ void Application::CreateDataBuffer()
     uavDesc.ViewDimension                    = D3D12_UAV_DIMENSION_BUFFER;
     uavDesc.Format                           = DXGI_FORMAT_UNKNOWN;
     uavDesc.Buffer.CounterOffsetInBytes      = 0;
-    uavDesc.Buffer.FirstElement              = 0;
-    uavDesc.Buffer.NumElements               = NUM_COUNT;
+    uavDesc.Buffer.NumElements               = ROW_COUNT;
     uavDesc.Buffer.StructureByteStride       = sizeof(int);
     uavDesc.Buffer.Flags                     = D3D12_BUFFER_UAV_FLAG_NONE;
 
     const auto descriptorSize =
         device_->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-    auto descriptorIndex = 0;
+    for (uint32_t descriptorIndex = 0; descriptorIndex < (COL_COUNT + 1); descriptorIndex++)
+    {
+        uavDesc.Buffer.FirstElement = descriptorIndex * ROW_COUNT;
 
-    device_->GetDevice()->CreateUnorderedAccessView(
-        dataBuffer_.Get(),
-        nullptr,
-        &uavDesc,
-        CD3DX12_CPU_DESCRIPTOR_HANDLE(
-            clearDescriptorHeap_->GetCPUDescriptorHandleForHeapStart(), descriptorIndex, descriptorSize));
-            
-    device_->GetDevice()->CreateUnorderedAccessView(
-        dataBuffer_.Get(),
-        nullptr,
-        &uavDesc,
-        CD3DX12_CPU_DESCRIPTOR_HANDLE(
-            resourceDescriptorHeap_->GetCPUDescriptorHandleForHeapStart(), descriptorIndex, descriptorSize));
-
-    uavDesc.Buffer.FirstElement = 1 * NUM_COUNT;
-    descriptorIndex = 1;
-
-    device_->GetDevice()->CreateUnorderedAccessView(
-        dataBuffer_.Get(),
-        nullptr,
-        &uavDesc,
-        CD3DX12_CPU_DESCRIPTOR_HANDLE(
-            clearDescriptorHeap_->GetCPUDescriptorHandleForHeapStart(), descriptorIndex, descriptorSize));
-            
-    device_->GetDevice()->CreateUnorderedAccessView(
-        dataBuffer_.Get(),
-        nullptr,
-        &uavDesc,
-        CD3DX12_CPU_DESCRIPTOR_HANDLE(
-            resourceDescriptorHeap_->GetCPUDescriptorHandleForHeapStart(), descriptorIndex, descriptorSize));
-
-    uavDesc.Buffer.FirstElement = 2 * NUM_COUNT;
-    descriptorIndex = 2;
-
-    device_->GetDevice()->CreateUnorderedAccessView(
-        dataBuffer_.Get(),
-        nullptr,
-        &uavDesc,
-        CD3DX12_CPU_DESCRIPTOR_HANDLE(
-            clearDescriptorHeap_->GetCPUDescriptorHandleForHeapStart(), descriptorIndex, descriptorSize));
-            
-    device_->GetDevice()->CreateUnorderedAccessView(
-        dataBuffer_.Get(),
-        nullptr,
-        &uavDesc,
-        CD3DX12_CPU_DESCRIPTOR_HANDLE(
-            resourceDescriptorHeap_->GetCPUDescriptorHandleForHeapStart(), descriptorIndex, descriptorSize));
+        device_->GetDevice()->CreateUnorderedAccessView(
+            dataBuffer_.Get(),
+            nullptr,
+            &uavDesc,
+            CD3DX12_CPU_DESCRIPTOR_HANDLE(
+                clearDescriptorHeap_->GetCPUDescriptorHandleForHeapStart(), descriptorIndex, descriptorSize));
+                
+        device_->GetDevice()->CreateUnorderedAccessView(
+            dataBuffer_.Get(),
+            nullptr,
+            &uavDesc,
+            CD3DX12_CPU_DESCRIPTOR_HANDLE(
+                resourceDescriptorHeap_->GetCPUDescriptorHandleForHeapStart(), descriptorIndex, descriptorSize));
+    }
 }
 
 void Application::CreateUploadBuffer()
 {
     uploadBuffer_.Reset();
 
-    const auto elementCount = 2 * NUM_COUNT;
-    const auto elementSize  = sizeof(int);
-
     CD3DX12_HEAP_PROPERTIES heapProperties(D3D12_HEAP_TYPE_UPLOAD);
     CD3DX12_RESOURCE_DESC   resourceDescription =
-        CD3DX12_RESOURCE_DESC::Buffer(elementCount * elementSize, D3D12_RESOURCE_FLAG_NONE);
+        CD3DX12_RESOURCE_DESC::Buffer((COL_COUNT + 1) * ROW_COUNT * sizeof(int), D3D12_RESOURCE_FLAG_NONE);
     ThrowIfFailed(device_->GetDevice()->CreateCommittedResource(&heapProperties,
                                                                 D3D12_HEAP_FLAG_NONE,
                                                                 &resourceDescription,
@@ -303,12 +266,9 @@ void Application::CreateReadbackBuffer()
 {
     readbackBuffer_.Reset();
 
-    const auto elementCount = NUM_COUNT;
-    const auto elementSize  = sizeof(int);
-
     CD3DX12_HEAP_PROPERTIES heapProperties(D3D12_HEAP_TYPE_READBACK);
     CD3DX12_RESOURCE_DESC   resourceDescription =
-        CD3DX12_RESOURCE_DESC::Buffer(elementCount * elementSize, D3D12_RESOURCE_FLAG_NONE);
+        CD3DX12_RESOURCE_DESC::Buffer(ROW_COUNT * sizeof(int), D3D12_RESOURCE_FLAG_NONE);
     ThrowIfFailed(device_->GetDevice()->CreateCommittedResource(&heapProperties,
                                                                 D3D12_HEAP_FLAG_NONE,
                                                                 &resourceDescription,
@@ -332,7 +292,7 @@ void Application::UploadBuffer() {
 
     std::array<int, 10> datas2 = { 20, 3, 2, 3, 5, 4, 6, 7, 8, 77 };
 
-    memcpy((int*) mappedData + NUM_COUNT, datas2.data(), datas2.size() * sizeof(int));
+    memcpy((int*) mappedData + ROW_COUNT, datas2.data(), datas2.size() * sizeof(int));
 
     uploadBuffer_->Unmap(0, nullptr);
 }
