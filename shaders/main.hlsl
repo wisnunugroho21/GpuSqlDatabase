@@ -1,25 +1,42 @@
 struct EntryRecord {
     uint dispatchSize : SV_DispatchGrid;
-    uint rowCount;
+    uint korban_rowCount;
+};
+
+struct JoinRecord {
+    uint dispatchSize : SV_DispatchGrid;
+    int  serangan_negaraPenyerang[64];
+    int  serangan_seranganRudal[64];
+};
+
+struct OnRecord {
+    uint dispatchSize : SV_DispatchGrid;
+    int  serangan_negaraPenyerang[64];
+    int  serangan_seranganRudal[64];
+    int  korban_negara[64];
+    int  korban_korbanJiwa[64];
 };
 
 struct WhereRecord {
-    uint index;
-    uint serangan_rudal;
+    int serangan_seranganRudal;
+    int korban_korbanJiwa;
 };
 
 struct SelectRecord {
-    uint index;
-    uint serangan_rudal;
+    int korban_korbanJiwa;
 };
 
-RWStructuredBuffer<int> SeranganRudalBuffer : register(u0);
+RWStructuredBuffer<int> Serangan_NegaraPenyerangBuffer : register(u0);
 
-// RWStructuredBuffer<int> InputBBuffer : register(u1);
+RWStructuredBuffer<int> Serangan_SeranganRudalBuffer : register(u1);
 
-RWStructuredBuffer<int> OutputBuffer : register(u1);
+RWStructuredBuffer<int> Korban_NegaraBuffer : register(u2);
 
-RWStructuredBuffer<int> atomicCounter : register(u2);
+RWStructuredBuffer<int> Korban_KorbanJiwaBuffer : register(u3);
+
+RWStructuredBuffer<int> Output_Korban_KorbanJiwaBuffer : register(u4);
+
+RWStructuredBuffer<int> atomicCounter : register(u5);
 
 [Shader("node")]
 [NodeIsProgramEntry]
@@ -29,18 +46,75 @@ RWStructuredBuffer<int> atomicCounter : register(u2);
 [NodeId("Entry")]
 void FromNode(
     uint dispatchThreadId: SV_DispatchThreadID,
+    uint groupThreadId: SV_GroupThreadID,
 
     DispatchNodeInputRecord<EntryRecord> inputRecord,
+
+    [MaxRecords(1)]
+    [NodeId("Join")]
+    NodeOutput<JoinRecord> nodeOutput
+) {
+    GroupNodeOutputRecords<JoinRecord> outputRecord = 
+        nodeOutput.GetGroupNodeOutputRecords(1);
+
+    outputRecord.Get().dispatchSize                            = inputRecord.Get().korban_rowCount;
+    outputRecord.Get().serangan_negaraPenyerang[groupThreadId] = Serangan_NegaraPenyerangBuffer[dispatchThreadId];
+    outputRecord.Get().serangan_seranganRudal[groupThreadId]   = Serangan_SeranganRudalBuffer[dispatchThreadId];
+
+    outputRecord.OutputComplete();
+}
+
+[Shader("node")]
+[NodeLaunch("broadcasting")]
+[NumThreads(64, 1, 1)]
+[NodeMaxDispatchGrid(512, 512, 1)]
+[NodeId("Join")]
+void JoinNode(    
+    uint groupThreadId: SV_GroupThreadID,
+    uint groupId: SV_GroupID,
+
+    DispatchNodeInputRecord<JoinRecord> inputRecord,
+
+    [MaxRecords(1)]
+    [NodeId("On")]
+    NodeOutput<OnRecord> nodeOutput
+) {
+    GroupNodeOutputRecords<OnRecord> outputRecord = 
+        nodeOutput.GetGroupNodeOutputRecords(1);
+
+    outputRecord.Get().dispatchSize                            = 1;
+    outputRecord.Get().serangan_negaraPenyerang[groupThreadId] = inputRecord.Get().serangan_negaraPenyerang[groupThreadId];
+    outputRecord.Get().serangan_seranganRudal[groupThreadId]   = inputRecord.Get().serangan_seranganRudal[groupThreadId];
+    outputRecord.Get().korban_negara[groupThreadId]            = Korban_NegaraBuffer[groupId];
+    outputRecord.Get().korban_korbanJiwa[groupThreadId]        = Korban_KorbanJiwaBuffer[groupId];
+
+    outputRecord.OutputComplete();    
+}
+
+[Shader("node")]
+[NodeLaunch("broadcasting")]
+[NumThreads(64, 1, 1)]
+[NodeMaxDispatchGrid(512, 512, 1)]
+[NodeId("On")]
+void OnNode(
+    uint groupThreadId: SV_GroupThreadID,
+    
+    DispatchNodeInputRecord<OnRecord> inputRecord,
 
     [MaxRecords(64)]
     [NodeId("Where")]
     NodeOutput<WhereRecord> nodeOutput
 ) {
-    ThreadNodeOutputRecords<WhereRecord> outputRecord = 
-        nodeOutput.GetThreadNodeOutputRecords(1);
+    const bool passJoin =
+        inputRecord.Get().korban_negara[groupThreadId] == inputRecord.Get().serangan_negaraPenyerang[groupThreadId];
 
-    outputRecord.Get().index          = dispatchThreadId.x;
-    outputRecord.Get().serangan_rudal = SeranganRudalBuffer[dispatchThreadId];
+    ThreadNodeOutputRecords<WhereRecord> outputRecord = 
+        nodeOutput.GetThreadNodeOutputRecords(passJoin);
+
+    if (passJoin) {
+        outputRecord.Get().serangan_seranganRudal = inputRecord.Get().serangan_seranganRudal[groupThreadId];
+        outputRecord.Get().korban_korbanJiwa      = inputRecord.Get().korban_korbanJiwa[groupThreadId];
+    }
 
     outputRecord.OutputComplete();
 }
@@ -61,14 +135,13 @@ void WhereNode(
 ) {
     const WhereRecord record = inputRecord[groupThreadId.x];
 
-    const bool passFilter = record.serangan_rudal > 500;
+    const bool passFilter = record.serangan_seranganRudal > 500;
 
     ThreadNodeOutputRecords<SelectRecord> outputRecord = 
         nodeOutput.GetThreadNodeOutputRecords(passFilter);
 
     if (passFilter) {
-        outputRecord.Get().index          = record.index;
-        outputRecord.Get().serangan_rudal = record.serangan_rudal;
+        outputRecord.Get().korban_korbanJiwa = record.korban_korbanJiwa;
     }
 
     outputRecord.OutputComplete();
@@ -87,5 +160,5 @@ void SelectNode(
     const SelectRecord record  = inputRecord[groupThreadId.x];
     int                counter = atomicCounter.IncrementCounter();
 
-    OutputBuffer[counter] = record.serangan_rudal;
+    Output_Korban_KorbanJiwaBuffer[counter] = record.korban_korbanJiwa;
 }

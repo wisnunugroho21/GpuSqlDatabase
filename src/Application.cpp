@@ -29,7 +29,7 @@
 #include <rapidcsv.h>
 
 #define ROW_COUNT 1000
-#define COL_COUNT 1
+#define COL_COUNT 4
 
 Application::Application(const Options& options)
 {
@@ -115,12 +115,12 @@ void Application::OnExecute(ID3D12GraphicsCommandList10* commandList)
 
     struct EntryRecord {
         uint32_t dispatchSize;
-        uint32_t rowCount;
+        uint32_t korban_rowCount;
     };
 
     EntryRecord entryRecord {
-        .dispatchSize = static_cast<uint32_t>(std::ceil(ROW_COUNT / 64)),
-        .rowCount      = ROW_COUNT
+        .dispatchSize   = static_cast<uint32_t>(std::ceil(ROW_COUNT / 64)),
+        .korban_rowCount = 10
     };
 
     workGraph_->Dispatch(commandList, &entryRecord, sizeof(entryRecord));
@@ -310,7 +310,7 @@ void Application::UploadBuffer() {
     ThrowIfFailed(uploadBuffer_->Map(0, nullptr, &mappedData));
 
     {
-        rapidcsv::Document doc("../../../data/serangan_db/serangan_rudal.csv", rapidcsv::LabelParams(-1, -1));
+        rapidcsv::Document doc("../../../data/serangan_db/negara_penyerang.csv", rapidcsv::LabelParams(-1, -1));
     
         std::vector<int> datas;
         datas.reserve(ROW_COUNT);
@@ -322,8 +322,8 @@ void Application::UploadBuffer() {
         memcpy(mappedData, datas.data(), datas.size() * sizeof(int));
     }
 
-    /* {
-        rapidcsv::Document doc("../../../data/random_integer1.csv", rapidcsv::LabelParams(-1, -1));
+    {
+        rapidcsv::Document doc("../../../data/serangan_db/serangan_rudal.csv", rapidcsv::LabelParams(-1, -1));
     
         std::vector<int> datas;
         datas.reserve(ROW_COUNT);
@@ -332,8 +332,34 @@ void Application::UploadBuffer() {
             datas.emplace_back(doc.GetCell<int>(0, i));
         }
 
-        memcpy((int*) mappedData + ROW_COUNT, datas.data(), datas.size() * sizeof(int));
-    } */
+        memcpy((int*) mappedData + 1 * ROW_COUNT, datas.data(), datas.size() * sizeof(int));
+    }
+
+    {
+        rapidcsv::Document doc("../../../data/korban_db/negara.csv", rapidcsv::LabelParams(-1, -1));
+    
+        std::vector<int> datas;
+        datas.reserve(ROW_COUNT);
+
+        for(size_t i = 0; i < 10; i++) {
+            datas.emplace_back(doc.GetCell<int>(0, i));
+        }
+
+        memcpy((int*) mappedData + 2 * ROW_COUNT, datas.data(), datas.size() * sizeof(int));
+    }
+
+    {
+        rapidcsv::Document doc("../../../data/korban_db/korban_jiwa.csv", rapidcsv::LabelParams(-1, -1));
+    
+        std::vector<int> datas;
+        datas.reserve(ROW_COUNT);
+
+        for(size_t i = 0; i < 10; i++) {
+            datas.emplace_back(doc.GetCell<int>(0, i));
+        }
+
+        memcpy((int*) mappedData + 3 * ROW_COUNT, datas.data(), datas.size() * sizeof(int));
+    }
 
     uploadBuffer_->Unmap(0, nullptr);
 }
