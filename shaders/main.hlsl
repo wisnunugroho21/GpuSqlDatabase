@@ -1,4 +1,4 @@
-struct EntryRecord {
+struct FromRecord {
     uint dispatchSize : SV_DispatchGrid;
     uint korban_rowCount;
 };
@@ -43,12 +43,12 @@ RWStructuredBuffer<int> atomicCounter : register(u5);
 [NodeLaunch("broadcasting")]
 [NumThreads(64, 1, 1)]
 [NodeMaxDispatchGrid(512, 512, 1)]
-[NodeId("Entry")]
+[NodeId("From")]
 void FromNode(
     uint dispatchThreadId: SV_DispatchThreadID,
     uint groupThreadId: SV_GroupThreadID,
 
-    DispatchNodeInputRecord<EntryRecord> inputRecord,
+    DispatchNodeInputRecord<FromRecord> inputRecord,
 
     [MaxRecords(1)]
     [NodeId("Join")]

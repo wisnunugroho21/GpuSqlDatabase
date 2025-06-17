@@ -108,11 +108,11 @@ WorkGraph::WorkGraph(const Device*        device,
     // GetEntrypointIndex allows us to translate from a node ID (i.e., node name and node array index)
     // to an entrypoint index.
     // See https://microsoft.github.io/DirectX-Specs/d3d/WorkGraphs.html#getentrypointindex
-    entryPointIndex_ = workGraphProperties->GetEntrypointIndex(workGraphIndex, {L"Entry", 0});
+    entryPointIndex_ = workGraphProperties->GetEntrypointIndex(workGraphIndex, {L"From", 0});
 
     // Check if entrypoint was found.
     if (entryPointIndex_ == 0xFFFFFFFFU) {
-        throw std::runtime_error("work graph does not contain an entry node with [NodeId(\"Entry\", 0)].");
+        throw std::runtime_error("work graph does not contain an entry node with [NodeId(\"From\", 0)].");
     }
 }
 
