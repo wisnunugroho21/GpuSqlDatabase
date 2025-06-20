@@ -22,7 +22,7 @@ RWStructuredBuffer<int> atomicCounter : register(u2);
 [NodeLaunch("broadcasting")]
 [NumThreads(64, 1, 1)]
 [NodeMaxDispatchGrid(512, 512, 1)]
-[NodeId("Entry")]
+[NodeId("From")]
 void FromNode(
     uint dispatchThreadId: SV_DispatchThreadID,
 
@@ -32,10 +32,10 @@ void FromNode(
     [NodeId("Where")]
     NodeOutput<WhereRecord> nodeOutput
 ) {
-    ThreadNodeOutputRecords<WhereRecord> outputRecord = 
+    ThreadNodeOutputRecords<WhereRecord> outputRecord =
         nodeOutput.GetThreadNodeOutputRecords(1);
 
-    outputRecord.Get().serangan_rudal = Serangan_SeranganRudalBuffer[dispatchThreadId];
+    outputRecord.Get().serangan_seranganRudal = Serangan_SeranganRudalBuffer[dispatchThreadId];
 
     outputRecord.OutputComplete();
 }
@@ -58,7 +58,7 @@ void WhereNode(
 
     const bool passFilter = record.serangan_seranganRudal > 500;
 
-    ThreadNodeOutputRecords<SelectRecord> outputRecord = 
+    ThreadNodeOutputRecords<SelectRecord> outputRecord =
         nodeOutput.GetThreadNodeOutputRecords(passFilter);
 
     if (passFilter) {
