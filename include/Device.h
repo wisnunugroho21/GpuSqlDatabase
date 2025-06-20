@@ -32,6 +32,8 @@
 #include <dxgidebug.h>
 #include <wrl/client.h>
 
+#include <cstdint>
+
 // List of annoying defines in Windows.h
 #undef min
 #undef max

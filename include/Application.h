@@ -33,14 +33,14 @@
 class Application {
 public:
     struct Options {
-        std::wstring  title        = L"Work Graph Playground";
+        std::wstring title = L"Work Graph Playground";
 
         bool forceWarpAdapter         = false;
         bool enableDebugLayer         = false;
         bool enableGpuValidationLayer = false;
     };
 
-    Application(const Options& options);
+    explicit Application(const Options& options);
     ~Application();
 
     void Run();
