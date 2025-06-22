@@ -10,11 +10,10 @@ struct JoinRecord {
 };
 
 struct OnRecord {
-    uint dispatchSize : SV_DispatchGrid;
-    int  serangan_negaraPenyerang[64];
-    int  serangan_seranganRudal[64];
-    int  korban_negara[64];
-    int  korban_korbanJiwa[64];
+    int  serangan_negaraPenyerang;
+    int  serangan_seranganRudal;
+    int  korban_negara;
+    int  korban_korbanJiwa;
 };
 
 struct WhereRecord {
@@ -78,62 +77,53 @@ void JoinNode(
     [MaxRecords(1)]
     [NodeId("On")]
     NodeOutput<OnRecord> nodeOutput
-) {
-    GroupNodeOutputRecords<OnRecord> outputRecord = 
-        nodeOutput.GetGroupNodeOutputRecords(1);
+) {    
+    ThreadNodeOutputRecords<OnRecord> outputRecord = 
+        nodeOutput.GetThreadNodeOutputRecords(1);
 
-    outputRecord.Get().dispatchSize                            = 1;
-    outputRecord.Get().serangan_negaraPenyerang[groupThreadId] = inputRecord.Get().serangan_negaraPenyerang[groupThreadId];
-    outputRecord.Get().serangan_seranganRudal[groupThreadId]   = inputRecord.Get().serangan_seranganRudal[groupThreadId];
-    outputRecord.Get().korban_negara[groupThreadId]            = Korban_NegaraBuffer[groupId];
-    outputRecord.Get().korban_korbanJiwa[groupThreadId]        = Korban_KorbanJiwaBuffer[groupId];
+    outputRecord.Get().serangan_negaraPenyerang = inputRecord.Get().serangan_negaraPenyerang[groupThreadId];
+    outputRecord.Get().serangan_seranganRudal   = inputRecord.Get().serangan_seranganRudal[groupThreadId];
+    outputRecord.Get().korban_negara            = Korban_NegaraBuffer[groupId];
+    outputRecord.Get().korban_korbanJiwa        = Korban_KorbanJiwaBuffer[groupId];
 
-    outputRecord.OutputComplete();    
+    outputRecord.OutputComplete();
 }
 
 [Shader("node")]
-[NodeLaunch("broadcasting")]
-[NumThreads(64, 1, 1)]
-[NodeMaxDispatchGrid(512, 512, 1)]
+[NodeLaunch("thread")]
 [NodeId("On")]
 void OnNode(
-    uint groupThreadId: SV_GroupThreadID,
-    
-    DispatchNodeInputRecord<OnRecord> inputRecord,
+    ThreadNodeInputRecord<OnRecord> inputRecord,
 
-    [MaxRecords(64)]
+    [MaxRecords(1)]
     [NodeId("Where")]
     NodeOutput<WhereRecord> nodeOutput
 ) {
     const bool passJoin =
-        inputRecord.Get().korban_negara[groupThreadId] == inputRecord.Get().serangan_negaraPenyerang[groupThreadId];
+        inputRecord.Get().korban_negara == inputRecord.Get().serangan_negaraPenyerang;
 
     ThreadNodeOutputRecords<WhereRecord> outputRecord = 
         nodeOutput.GetThreadNodeOutputRecords(passJoin);
 
     if (passJoin) {
-        outputRecord.Get().serangan_seranganRudal = inputRecord.Get().serangan_seranganRudal[groupThreadId];
-        outputRecord.Get().korban_korbanJiwa      = inputRecord.Get().korban_korbanJiwa[groupThreadId];
+        outputRecord.Get().serangan_seranganRudal = inputRecord.Get().serangan_seranganRudal;
+        outputRecord.Get().korban_korbanJiwa      = inputRecord.Get().korban_korbanJiwa;
     }
 
     outputRecord.OutputComplete();
 }
 
 [Shader("node")]
-[NodeLaunch("coalescing")]
-[NumThreads(64, 1, 1)]
+[NodeLaunch("thread")]
 [NodeId("Where")]
 void WhereNode(
-    uint3 groupThreadId: SV_GroupThreadID,
+    ThreadNodeInputRecord<WhereRecord> inputRecord,
 
-    [MaxRecords(64)]
-    GroupNodeInputRecords<WhereRecord> inputRecord,
-
-    [MaxRecords(64)]
+    [MaxRecords(1)]
     [NodeId("Select")]
     NodeOutput<SelectRecord> nodeOutput
 ) {
-    const WhereRecord record = inputRecord[groupThreadId.x];
+    const WhereRecord record = inputRecord.Get();
 
     const bool passFilter = record.serangan_seranganRudal > 500;
 
@@ -148,16 +138,12 @@ void WhereNode(
 }
 
 [Shader("node")]
-[NodeLaunch("coalescing")]
-[NumThreads(64, 1, 1)]
+[NodeLaunch("thread")]
 [NodeId("Select")]
 void SelectNode(
-    uint3 groupThreadId: SV_GroupThreadID,
-
-    [MaxRecords(64)]
-    GroupNodeInputRecords<SelectRecord> inputRecord
+    ThreadNodeInputRecord<SelectRecord> inputRecord
 ) {
-    const SelectRecord record  = inputRecord[groupThreadId.x];
+    const SelectRecord record  = inputRecord.Get();
     int                counter = atomicCounter.IncrementCounter();
 
     Output_Korban_KorbanJiwaBuffer[counter] = record.korban_korbanJiwa;
