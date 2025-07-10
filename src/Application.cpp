@@ -52,32 +52,36 @@ Application::~Application()
 
 void Application::Run()
 {
-    // Check if re-creation of work graph is required
-    if (shaderCompiler_.CheckShaderSourceFiles()) {
-        std::cout << "Changes to shader source files detected. Recompiling work graph..." << std::endl;
-        // Recompile shaders & re-create work graph
-        const bool success = CreateWorkGraph();
-
-        if (success) {
-            // Reset error message time
-            errorMessageEndTime_ = std::chrono::high_resolution_clock::now();
-            std::cout << "Successfully compiling work graph..." << std::endl;
-        } else {
-            using namespace std::chrono_literals;
-            // Show error message pop-up for 5s
-            errorMessageEndTime_ = std::chrono::high_resolution_clock::now() + 5s;
-        }
-    }
-
     UploadBuffer();
 
-    // Advance to next command buffer
-    ID3D12GraphicsCommandList10* commandList = device_->GetNextFrameCommandList();
+    do{
+        // Check if re-creation of work graph is required
+        if (shaderCompiler_.CheckShaderSourceFiles()) {
+            std::cout << "Changes to shader source files detected. Recompiling work graph..." << std::endl;
+            // Recompile shaders & re-create work graph
+            const bool success = CreateWorkGraph();
 
-    OnExecute(device_->GetNextFrameCommandList());
+            if (success) {
+                // Reset error message time
+                errorMessageEndTime_ = std::chrono::high_resolution_clock::now();
+                std::cout << "Successfully compiling work graph..." << std::endl;
+            } else {
+                using namespace std::chrono_literals;
+                // Show error message pop-up for 5s
+                errorMessageEndTime_ = std::chrono::high_resolution_clock::now() + 5s;
+            }
+        }
 
-    // Execute command list
-    device_->ExecuteCurrentFrameCommandList();
+        
+
+        // Advance to next command buffer
+        ID3D12GraphicsCommandList10* commandList = device_->GetNextFrameCommandList();
+
+        OnExecute(commandList);
+
+        // Execute command list
+        device_->ExecuteCurrentFrameCommandList();
+    } while(true);
     device_->WaitForDevice();
 
     std::cout << "Success!" << std::endl;
